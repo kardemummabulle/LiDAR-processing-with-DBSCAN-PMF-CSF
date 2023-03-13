@@ -6,7 +6,6 @@ fig_caption: yes
 ---
 
 ## SECTION I: set-up R environment and prepare data.
-
 #### Batch install packages needed to run the script.
 ##### The function "all_packages" installs all packages specified in the parameter "packages" with their dependencies.
 ##### This is needed to ensure that the R environment has all packages needed to run the script.
@@ -68,7 +67,7 @@ rotated_grid <- rotated_grid %>% st_sf('geometry'= .,data.frame('tile_id'=1:leng
 st_crs(rotated_grid) <- 3006 
 
 # Create a folder for export of grid tiles
-ifelse(!dir.exists(file.path("U:/data","GRID")),dir.create(file.path("U:/data","GRID")),F)
+ifelse(!dir.exists(file.path("U:/data/","GRID")),dir.create(file.path("U:/data/","GRID")),F)
 ifelse(!dir.exists(file.path("U:/data/GRID","7x7")),dir.create(file.path("U:/data/GRID","7x7")),F)
 
 # Splid the grid by tile ID and save as individual shapefiles
@@ -85,13 +84,11 @@ split_grid <- function(rotated_grid,...){
 split_grid(rotated_grid)
 ```
 
-
 ## SECTION II: DBSCAN on raw LAS-file.
-
 #### Import the raw LAS-file. 
 ##### Only parameters x, y and z are being imported as these are the parameters of interest.
 ```{r,error=FALSE,warning=FALSE,message=FALSE}
-(LASfile <- readLAS("U:/data/las_60m_SWEREF99TM_RH2000.las",select="xyz"))
+(LASfile <- readLAS("U:/data/LAS_60m_SWEREF99TM_RH2000.las",select="xyz"))
 ```
 
 #### Clip raw LAS-file to tiles.
@@ -102,7 +99,7 @@ grid <- list.files('U:/data/GRID/7x7',pattern="\\.shp$",full.names=T,recursive=F
 in_files <- extension(basename(grid),'.las')
 
 # Create a folder for export of clipped LAS tiles
-ifelse(!dir.exists(file.path("U:/data","LAS_ID_7x7_raw")),dir.create(file.path("U:/data","LAS_ID_7x7_raw")),F)
+ifelse(!dir.exists(file.path("U:/data/","LAS_ID_7x7_raw")),dir.create(file.path("U:/data/","LAS_ID_7x7_raw")),F)
 output_folder <- 'U:/data/LAS_ID_7x7_raw'   
 out_files <- file.path(output_folder,in_files)
 
@@ -119,17 +116,11 @@ batch_clip(grid)
 ```
 
 ### DBSCAN 
-
 ##### More on DBSCAN here: https://cran.r-project.org/web/packages/dbscan/dbscan.pdf
-
 ##### The idea of using DBSCAN came from the Deng et al., 2022 as a suitable method for filtering ground points together with rocks/boulders while removing points associated with trees/bushes and other noise.
-
 ##### DBSCAN is a density-based clustering algorithm, introduced in Ester et al. 1996, which can be used to identify clusters of any shape in data set containing noise and outliers. DBSCAN stands for "Density-Based Spatial Clustering and Application with Noise". The basic idea behind density-based clustering approach is derived from a human intuitive clustering method: clusters are dense regions in the data space, separated by regions of lower density of points. In other words, the density of points in a cluster is considerably higher than the density of points outside the cluster (“areas of noise”). DBSCAN is based on this intuitive notion of “clusters” and “noise”. The key idea is that for each point of a cluster, the neighborhood of a given radius has to contain at least a minimum number of points.
-
 ##### The goal is to identify dense regions, which can be measured by the number of objects close to a given point. Two important parameters are required for DBSCAN: epsilon (“eps”) and minimum points (“minPts”). The parameter "eps" defines the radius of neighborhood around a point x. It’s called called the "epsilon-neighborhood" of x. The parameter "minPts" is the minimum number of neighbors within “eps” radius. Any point x in the dataset, with a neighbor count greater than or equal to "minPts", is marked as a core point; x is border point, if the number of its neighbors is less than "minPts", but it belongs to the "epsilon-neighborhood" of some core point z. Finally, if a point is neither a core nor a border point, then it is called a noise point or an outlier.
-
 ##### One should start by playing with the “minPts” that will form a cluster. “minPts” defines the minimum density around a core point (i.e., the minimum density for non-noise areas). Increasing the “minPts” suppresses more noise in the data and requires more points to form a cluster. Since the point cloud is normally very dense and the ground theoretically should be the most dense region, one could start at average density of the pointcloud. In this case the average density of the raw unclipped LAS-file is 1333.61 points/m², so 1200 can be a nice starting point. Note that the choice of the parameters is arbitrary and the different values will affect DBSCAN output.
-
 ##### Another key parameter is the “eps” value. A suitable “eps” given a fixed value for “minPts” can be found by inspecting the "kNNdistplot". The k-nearest neighbor distance plot sorts all data points by their k-nearest neighbor distance (here from cluster with 1200 points). So on x axis is the number of points sorted by distance and on y axis is the “eps” (or a proximity, how close they are to each other). A sudden increase of the kNN distance (a knee) indicates that the points to the right are most likely outliers. Choose “eps” for DBSCAN where the knee is. Note that the distance is not metric, it is Euclidean. In mathematics, the Euclidean distance between two points in Euclidean space is the length of a line segment between the two points. It can be calculated from the Cartesian coordinates of the points using the Pythagorean theorem, therefore is called the Pythagorean distance. Here the code is run with several “eps” but one "minPts" of 1200. The results are appended to LAS tiles and tiles are exported as separate LAS files.
 ```{r,error=FALSE,warning=FALSE,message=FALSE,out.width="50%",fig.retina=2,fig.align="center"}
 # Let's check one of the tiles and try to pick DBSCAN parameters
@@ -235,7 +226,7 @@ options(rgl.useNULL=TRUE)
 plot(tile110,color="eps0.8",pal=rainbow,legend=T)
 widget=rglwidget()
 print(widget)
-# If one tries to plot with different eps values it will be visible that that for tile 110 some eps  values fit better than others. Here 0.8 works best in my subjective opinion.
+# If one tries to plot with different eps values it will be visible that that for tile 110 some eps values fit better than others. Here 0.8 works best in my subjective opinion.
 ```
 
 ```{r,error=FALSE,warning=FALSE,message=FALSE,out.width="50%",fig.retina=2,fig.align="center"}
@@ -252,12 +243,10 @@ print(widget)
 
 #### Summary: DBSCAN
 ##### Generally, DBSCAN succeeds at grouping points for trees and branches together, but the results vary for different tiles and their size. The tested tile sizes were: 3x3 m, 5x5, 7x7 m, 10x10 m, 15x15 m and 22.5x22.5 m (10x10 m, 15x15 m and 22.5x22.5 m were tested with pre-processed LAS-file (in TerraSolid), because DBSCAN won't run on such big dense tiles). The smaller tiles run faster and the larger ones take a long long time (as was just seen above). DBSCAN will run faster if the RAM memory on the computer is large and if there are several CPUs (here I had 13 cores). Also having less eps values would significantly speed up the running time. 
-
 ##### Individual tiles can be filtered based on the DBSCAN output and serve as an input for one more DBSCAN run (maybe with the second/third round one could succeed at removing unnecessary points and have a nicely filtered pointcloud). But his is both computationally/memory and time-demanding procedure that will require some fine-tuning and manual work. Also, in order to filter tiles properly one should create a more complex function that will be able to identify ground class that differ in each tile based on best-fit eps and respective densities that vary between the tiles. There is a lot of variability between the tiles and no tiles' results look comparable, so for example in one tile the best results will be with eps value of 0.8 and another tile might have eps value of 0.95, etc etc (as seen in the example above). This is not only due to the internal variability of each tile (what is inside the tile, whether it has trees, boulders, bushes, etc or only ground with minimal noise), but also due to how the script for DBSCAN is structered here. Ideally the DBSCAN should be trained on one single tile and then the output should be "predicted" for the rest of the data. But this is not possible because the LAS-file is too large to be "predicted to".
 
 
 ## SECTION III: Progressive Morphological Filter and Cloth Simulation Function.
-
 #### Create a bigger grid.
 ##### Create a 22.5 by 22.5 m grid rotated at 21.5 degrees to split the polygon in 28 tiles.
 ```{r,error=FALSE,warning=FALSE,message=FALSE,out.width="50%",fig.retina=2,fig.align="center"}
@@ -320,22 +309,14 @@ batch_clip(grid)
 ```
 
 #### Progressive Morphological Filter (PMF). 
-
 ##### More on PMF here: https://r-lidar.github.io/lidRbook/gnd.html
-
 ##### PMF algorithm is based on the method described in Zhang et al., 2003.
-
 ##### Mathematical morphology composes operations based on set theory to extract features from an image. Two fundamental operations, dilation and erosion, are commonly employed to enlarge (dilate) or reduce (erode) the size of features in binary images. Dilation and erosion operations may be combined to produce opening and closing operations. The concept of erosion and dilation has been extended to multilevel (grayscale) images and corresponds to finding the minimum or maximum of the combinations of pixel values and the kernel function, respectively, within a specified neighborhood of each raster. These concepts can also be extended to the analysis of a continuous surface such as LIDAR data.
-
 ##### The combination of erosion and dilation generates opening and closing operations that are employed to filter LIDAR data. The opening operation is achieved by performing an erosion of the dataset followed by a dilation, while the closing operation is accomplished by carrying out a dilation first and then an erosion. An initial filtered surface is derived by applying an opening operation with a window of length l1 to the raw data. The large nonground features such as buildings are preserved because their sizes are larger than l1, while individual trees of size smaller than l1 are removed. For the terrain, features smaller than l1 are cut off and replaced by the minimum elevation within l1. In the next iteration, the window size is increased to l2, and another opening operation is applied to the filtered surface, resulting in a further smoothed surface. The building measurements are removed and replaced by the minimum elevation of previous filtered surface within l2, since the size of the building is smaller than the current window size. By performing an opening operation to LIDAR data with a line window that increases in size gradually, the progressive morphological filter can remove buildings and trees at various elevations.
-
 ##### PMF requires defining the following input parameters: "ws" (window size or sequence of window sizes in m), and "th" (elevation threshold or sequence of elevation thresholds in m).
 ##### The selection of the window size and elevation difference threshold is critical to achieve good results when applying the morphological filter. For window size selection, one straightforward choice is to increase the window size linearly by the following equation 4 from Zhang et al., 2003:
-
 ##### (4) wk=2kb+1
-
 ##### where k=1,2,.., and b is the initial window. Using equation 4 as the window size guarantees that the filter window is symmetric around the central point so that the programming of the opening operation is simplified and topographic features are being preserved. However, considerable computing time is needed for an area with large nonground objects.
-
 ##### The elevation threshold can be determined based on the slope of topography in the study area (equations 6-7 in Zhang et al., 2003). There is a relationship between the maximum elevation difference for the terrain, window size, and the terrain slope assuming that the slope is constant. But here in this script the sequence of window sizes and thresholds were arbitrary chosen and fine-tuned according to the output.
 
 ##### Import 22.5x22.5 m tiles into catalog for further processing.
@@ -429,9 +410,7 @@ plot_crossection(tile10_pmf,colour_by=factor(Classification))
 ##### CSF uses the Zhang et al., 2016 algorithm and consists of simulating a piece of cloth draped over a reversed point cloud. In this method the point cloud is turned upside down and then a cloth is dropped on the inverted surface. Ground points are determined by analyzing the interactions between the nodes of the cloth and the inverted surface. The cloth simulation itself is based on a grid that consists of particles with mass and interconnections that together determine the three-dimensional position and shape of the cloth.
 
 ##### CSF is a term of 3D computer graphics. It is also called cloth modeling, which is used for simulating cloth within a computer program. During cloth simulation, the cloth can be modeled as a grid that consists of particles with mass and interconnections, called a Mass-Spring Model. A particle on the node of the grid has no size but is assigned with a constant mass. The positions of the particles in three-dimensional space determine the position and shape of the cloth. In this model, the interconnection between particles is modeled as a “virtual spring”, which connects two particles and obeys Hooke’s law. To simulate the shape of the cloth at a speciﬁc time, the positions of all of the particles in the 3D space are computed: the position and velocity of a particle are determined by the forces that act upon it and can be quantified using Newton’s second law.
-
 ##### When applying the cloth simulation to LiDAR point ﬁltering, a number of modiﬁcations have been made to make this algorithm adaptable to point cloud ﬁltering. First, the movement of a particle is constrained to be in vertical direction, so the collision detection can be implemented by comparing the height values of the particle and the terrain (e.g., when the position of a particle is below or equal to the terrain, the particle intersects with the terrain). Second, when a particle reaches the “right position”, i.e., the ground, this particle is set as unmovable. Third, the forces are divided into two discrete steps to achieve simplicity and relatively high performance. Usually, the position of a particle is determined by the net force of the external and internal forces. In CSF the displacement of a particle from gravity is computed first (the particle is set as unmovable when it reaches the ground, so the collision force can be omitted) and then the position of this particle is modified according to the internal forces.
-
 ##### CSF algorithm needs several parameters: 
 ##### sloop_smooth - smoothness of the slope (when sharp slopes exist, set this parameter to TRUE to reduce errors).
 ##### class_threshold - the distance to the simulated cloth to classify point cloud into ground and non-ground. The default is 0.5.
@@ -510,5 +489,4 @@ plot_crossection(tile10_csf,colour_by=factor(Classification))
 
 #### Summary: CSF.
 ##### CSF is also quite easy to run and fine-tune, but it can only be run on tiles and won't be able to process large LAS file. The function works well on both raw and pre-processed in TerraSolid LAS file and yields comparable outputs. There are alot of parameters one can play with.
-
 #### End ʕ•ᴥ•ʔ
